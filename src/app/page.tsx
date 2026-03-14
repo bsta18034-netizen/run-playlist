@@ -74,6 +74,7 @@ export default function Page() {
           playlist={state.playlist}
           condition={state.condition}
           onRegenerate={handleRegenerate}
+          onBack={handleBackToHome}
         />
       )}
       {state.screen === "error" && (

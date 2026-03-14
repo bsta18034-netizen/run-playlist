@@ -20,43 +20,51 @@ function buildPrompt(condition: RunCondition): string {
   const bpm = resolveBpm(condition);
   const [bpmLow, bpmHigh] = bpmRange(bpm);
   const targetSec = condition.durationMinutes * 60;
+
+  // 1曲平均4分と仮定して必要曲数を事前計算（最低4曲）
+  const targetTrackCount = Math.max(4, Math.ceil(condition.durationMinutes / 4));
+
   const genreNote =
     condition.genre === "なんでもOK"
-      ? "ジャンルは問わない（何でもよい）"
-      : `ジャンルは「${condition.genre}」を中心に`;
+      ? "ジャンルは問わない（ポップス・ロック・EDM・R&Bなど幅広く可）"
+      : `メインジャンルは「${condition.genre}」。同ジャンルの隣接ジャンルも含めてよい`;
   const artistNote = condition.favoriteArtist.trim()
-    ? `ユーザーの好きなアーティストは「${condition.favoriteArtist}」です。可能であれば1〜2曲含めてください。`
+    ? `【好みのアーティスト】「${condition.favoriteArtist}」の曲を1〜2曲必ず含めること。残りは他のアーティストの曲を選ぶこと。`
     : "";
 
   return `
 あなたはプロのランニングDJです。
-以下の条件に合う実在する楽曲のプレイリストをJSON形式で生成してください。
+以下の条件を厳守し、実在する楽曲のプレイリストをJSON形式で生成してください。
 
-## 条件
-- 目標ランニング時間: ${condition.durationMinutes}分（= ${targetSec}秒）
-- 目標BPM帯: ${bpmLow}〜${bpmHigh} BPM（ランニングピッチに合わせる）
+## ランニング条件
+- 目標時間: ${condition.durationMinutes}分（= ${targetSec}秒）
+- 必要曲数: 必ず【${targetTrackCount}曲前後（±2曲以内）】を選曲すること
+- 目標BPM帯: ${bpmLow}〜${bpmHigh} BPM
 - ${genreNote}
-- 気分: ${condition.mood}
+- 気分・テンション: ${condition.mood}
 ${artistNote}
 
-## 出力ルール
-1. 楽曲の合計再生時間が目標時間の ±1分以内になるよう曲数を調整すること
-2. 各曲のdurationSecondsは実際の曲の長さ（秒）を使用すること（120〜360秒の範囲）
-3. bpmは実際にランニングに適したBPMを設定すること（必ず${bpmLow}〜${bpmHigh}の範囲内）
-4. 実在する楽曲のみを使用すること（架空の曲は禁止）
-5. commentは日本語で、選曲の意図を50文字以内で簡潔に述べること
+## 厳守ルール
+1. 【最重要】楽曲を必ず ${targetTrackCount} 曲前後（±2曲）選ぶこと。曲数が少なすぎるのは絶対に禁止。
+2. 合計durationSecondsが目標時間（${targetSec}秒）の ±90秒以内に収まるよう調整すること。
+3. 各曲のdurationSecondsは実際の曲の長さ（秒）を使用すること（150〜360秒の範囲）。
+4. bpmは ${bpmLow}〜${bpmHigh} の範囲内で設定すること。
+5. 実在する楽曲のみ使用すること（架空の曲・アーティストは絶対禁止）。
+6. 【多様性】同じアーティストの曲は最大2曲まで。異なる年代・アーティストから幅広く選ぶこと。
+7. commentは日本語で選曲の意図を60文字以内で述べること。
+8. 出力はJSONのみ。Markdownのコードブロック（\`\`\`json など）は絶対に含めないこと。
 
-## 必須JSONフォーマット（このキーのみ使用すること）
+## 出力フォーマット（このキーのみ、余分なフィールド禁止）
 {
   "tracks": [
     {
-      "title": "曲名",
+      "title": "曲名（原題のまま）",
       "artist": "アーティスト名",
       "durationSeconds": 240,
       "bpm": 163
     }
   ],
-  "comment": "選曲の意図（50文字以内）"
+  "comment": "選曲コメント（60文字以内）"
 }
 `.trim();
 }
@@ -122,11 +130,12 @@ export async function POST(req: NextRequest) {
       model: "gpt-4o-mini",
       response_format: { type: "json_object" },
       temperature: 0.8,
+      max_tokens: 4000,
       messages: [
         {
           role: "system",
           content:
-            "あなたはランニング専門の選曲AIです。必ず有効なJSONのみを返してください。説明文は不要です。",
+            "あなたはランニング専門の選曲AIです。指定された曲数を必ず守り、有効なJSONのみを返してください。Markdownや説明文は一切不要です。",
         },
         { role: "user", content: prompt },
       ],

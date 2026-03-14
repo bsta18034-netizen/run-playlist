@@ -1,12 +1,13 @@
 "use client";
 
-import { ExternalLink, RefreshCw, Clock, Music2, CheckCircle, Share2, BookmarkCheck } from "lucide-react";
+import { ExternalLink, RefreshCw, Clock, Music2, CheckCircle, Share2, BookmarkCheck, ChevronLeft } from "lucide-react";
 import type { Playlist, RunCondition, Track } from "@/types";
 
 interface Props {
   playlist: Playlist;
   condition: RunCondition;
   onRegenerate: () => void;
+  onBack: () => void;
 }
 
 function formatTime(seconds: number): string {
@@ -27,13 +28,8 @@ function getAppleMusicUrl(track: Track): string {
   return `https://music.apple.com/jp/search?term=${query}`;
 }
 
-function getMatchRatio(total: number, target: number): number {
-  return Math.min(100, Math.round((total / target) * 100));
-}
-
-export default function ResultScreen({ playlist, condition, onRegenerate }: Props) {
+export default function ResultScreen({ playlist, condition, onRegenerate, onBack }: Props) {
   const targetSeconds = condition.durationMinutes * 60;
-  const matchRatio = getMatchRatio(playlist.totalSeconds, targetSeconds);
   const diff = playlist.totalSeconds - targetSeconds;
   const diffLabel =
     diff === 0
@@ -43,13 +39,11 @@ export default function ResultScreen({ playlist, condition, onRegenerate }: Prop
       : `-${formatMinSec(Math.abs(diff))} 不足`;
 
   return (
-    <div className="flex flex-col min-h-screen pb-36">
+    <div className="flex flex-col min-h-screen pb-44">
       {/* Header */}
       <div
         className="px-5 pt-10 pb-6"
-        style={{
-          background: "linear-gradient(180deg, #0d2a1f 0%, #0a0a0f 100%)",
-        }}
+        style={{ background: "linear-gradient(180deg, #0d2a1f 0%, #0a0a0f 100%)" }}
       >
         <div className="flex items-center justify-between mb-4">
           <div>
@@ -96,27 +90,6 @@ export default function ResultScreen({ playlist, condition, onRegenerate }: Prop
           />
         </div>
 
-        {/* Match progress */}
-        <div className="mt-4">
-          <div className="flex justify-between text-xs mb-1.5">
-            <span className="text-gray-400">目標達成度</span>
-            <span className="font-bold" style={{ color: matchRatio >= 95 ? "var(--accent)" : "#ff6b35" }}>
-              {matchRatio}%
-            </span>
-          </div>
-          <div className="h-2 bg-[#1e1e2e] rounded-full overflow-hidden">
-            <div
-              className="h-full rounded-full transition-all duration-1000"
-              style={{
-                width: `${matchRatio}%`,
-                background:
-                  matchRatio >= 95
-                    ? "linear-gradient(90deg, var(--accent), #00e67a)"
-                    : "linear-gradient(90deg, #ff6b35, #ff8c5a)",
-              }}
-            />
-          </div>
-        </div>
       </div>
 
       {/* AI Comment */}
@@ -141,7 +114,8 @@ export default function ResultScreen({ playlist, condition, onRegenerate }: Prop
 
       {/* Fixed bottom actions */}
       <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto px-5 pb-8 pt-4 bg-gradient-to-t from-[#0a0a0f] via-[#0a0a0f]/95 to-transparent">
-        <div className="flex gap-3">
+        {/* Primary actions */}
+        <div className="flex gap-3 mb-3">
           <button
             onClick={onRegenerate}
             className="flex-1 py-4 rounded-2xl border border-[var(--accent)] text-sm font-bold flex items-center justify-center gap-2 active:scale-95 transition-transform"
@@ -158,6 +132,15 @@ export default function ResultScreen({ playlist, condition, onRegenerate }: Prop
             シェア
           </button>
         </div>
+        {/* Secondary action */}
+        <button
+          onClick={onBack}
+          className="w-full py-3.5 rounded-2xl text-sm font-medium flex items-center justify-center gap-2 border border-[#2a2a3a] text-gray-400 active:scale-95 transition-transform"
+          style={{ background: "rgba(255,255,255,0.03)" }}
+        >
+          <ChevronLeft size={16} />
+          条件入力に戻る
+        </button>
       </div>
     </div>
   );
