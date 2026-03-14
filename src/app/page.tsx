@@ -1,65 +1,154 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import { useState, useCallback } from "react";
+import HomeScreen from "@/components/HomeScreen";
+import LoadingScreen from "@/components/LoadingScreen";
+import ResultScreen from "@/components/ResultScreen";
+import ErrorScreen from "@/components/ErrorScreen";
+import type { AppScreen, RunCondition, Playlist } from "@/types";
+
+type PageState =
+  | { screen: "home" }
+  | { screen: "loading"; condition: RunCondition }
+  | { screen: "result"; condition: RunCondition; playlist: Playlist }
+  | { screen: "error"; condition: RunCondition; message: string };
+
+async function callGenerateApi(condition: RunCondition): Promise<Playlist> {
+  const res = await fetch("/api/generate", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(condition),
+  });
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error ?? `HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export default function Page() {
+  const [state, setState] = useState<PageState>({ screen: "home" });
+
+  const handleGenerate = useCallback(async (condition: RunCondition) => {
+    setState({ screen: "loading", condition });
+    try {
+      const playlist = await callGenerateApi(condition);
+      setState({ screen: "result", condition, playlist });
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "不明なエラーが発生しました";
+      setState({ screen: "error", condition, message });
+    }
+  }, []);
+
+  const handleRegenerate = useCallback(async () => {
+    if (state.screen !== "result" && state.screen !== "error") return;
+    const { condition } = state;
+    setState({ screen: "loading", condition });
+    try {
+      const playlist = await callGenerateApi(condition);
+      setState({ screen: "result", condition, playlist });
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "不明なエラーが発生しました";
+      setState({ screen: "error", condition, message });
+    }
+  }, [state]);
+
+  const handleBackToHome = useCallback(() => {
+    setState({ screen: "home" });
+  }, []);
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
+    <>
+      {state.screen === "home" && (
+        <HomeScreen onGenerate={handleGenerate} />
+      )}
+      {state.screen === "loading" && (
+        <LoadingScreen />
+      )}
+      {state.screen === "result" && (
+        <ResultScreen
+          playlist={state.playlist}
+          condition={state.condition}
+          onRegenerate={handleRegenerate}
         />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+      )}
+      {state.screen === "error" && (
+        <ErrorScreen
+          message={state.message}
+          onRetry={handleRegenerate}
+          onBack={handleBackToHome}
+        />
+      )}
+
+      {/* Dev nav — removed in production */}
+      {process.env.NODE_ENV === "development" && (
+        <div className="fixed top-3 right-3 flex gap-1 z-50">
+          {(["home", "loading", "result", "error"] as AppScreen[]).map((s) => (
+            <button
+              key={s}
+              onClick={() => {
+                if (s === "home") setState({ screen: "home" });
+                if (s === "loading") {
+                  const c = getDevCondition();
+                  setState({ screen: "loading", condition: c });
+                }
+                if (s === "result") {
+                  const c = getDevCondition();
+                  setState({ screen: "result", condition: c, playlist: getDevPlaylist(c) });
+                }
+                if (s === "error") {
+                  const c = getDevCondition();
+                  setState({ screen: "error", condition: c, message: "AI選曲中にエラーが発生しました。" });
+                }
+              }}
+              className={`px-2 py-1 rounded text-[10px] font-bold border transition-all ${
+                state.screen === s
+                  ? "bg-[var(--accent)] text-black border-[var(--accent)]"
+                  : "bg-[#13131f] text-gray-400 border-[#2a2a3a]"
+              }`}
             >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+              {s}
+            </button>
+          ))}
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+      )}
+    </>
   );
+}
+
+// ── Dev helpers ─────────────────────────────────────────────────────────────
+function getDevCondition(): RunCondition {
+  return {
+    durationMinutes: 30,
+    bpmMode: "preset",
+    bpmManual: 160,
+    bpmPreset: "normal",
+    genre: "J-POP",
+    mood: "楽しく",
+    favoriteArtist: "",
+  };
+}
+
+function getDevPlaylist(condition: RunCondition): Playlist {
+  const tracks = [
+    { title: "Idol", artist: "YOASOBI", durationSeconds: 212, bpm: 163 },
+    { title: "怪物", artist: "YOASOBI", durationSeconds: 231, bpm: 161 },
+    { title: "夜に駆ける", artist: "YOASOBI", durationSeconds: 254, bpm: 164 },
+    { title: "紅蓮華", artist: "LiSA", durationSeconds: 267, bpm: 160 },
+    { title: "炎", artist: "LiSA", durationSeconds: 252, bpm: 165 },
+    { title: "Mela!", artist: "緑黄色社会", durationSeconds: 201, bpm: 162 },
+    { title: "Habit", artist: "SEKAI NO OWARI", durationSeconds: 188, bpm: 166 },
+    { title: "猫", artist: "DISH//", durationSeconds: 230, bpm: 163 },
+  ];
+  const totalSeconds = tracks.reduce((s, t) => s + t.durationSeconds, 0);
+  return {
+    tracks,
+    totalSeconds,
+    targetSeconds: condition.durationMinutes * 60,
+    comment: "30分のランに最適な8曲を選曲しました。BPM 163付近の曲で統一しています。",
+  };
 }
