@@ -1,6 +1,7 @@
 "use client";
 
-import { ExternalLink, RefreshCw, Clock, Music2, CheckCircle, Share2, BookmarkCheck, ChevronLeft } from "lucide-react";
+import { useState } from "react";
+import { ExternalLink, RefreshCw, Clock, Music2, CheckCircle, Share2, BookmarkCheck, ChevronLeft, Copy, Check } from "lucide-react";
 import type { Playlist, RunCondition, Track } from "@/types";
 
 interface Props {
@@ -37,6 +38,37 @@ export default function ResultScreen({ playlist, condition, onRegenerate, onBack
       : diff > 0
       ? `+${formatMinSec(diff)} オーバー`
       : `-${formatMinSec(Math.abs(diff))} 不足`;
+
+  const [shareState, setShareState] = useState<"idle" | "copied">("idle");
+
+  const handleShare = async () => {
+    const trackLines = playlist.tracks
+      .map((t, i) => `${i + 1}. ${t.title} / ${t.artist} (${t.bpm} BPM)`)
+      .join("\n");
+    const text =
+      `🏃 RunTune AI が選曲しました！\n` +
+      `⏱ ${condition.durationMinutes}分 のランニング用プレイリスト\n\n` +
+      `${trackLines}\n\n` +
+      `合計 ${formatMinSec(playlist.totalSeconds)} · ${playlist.tracks.length}曲`;
+
+    if (typeof navigator !== "undefined" && navigator.share) {
+      try {
+        await navigator.share({ title: "RunTune AI プレイリスト", text });
+        return;
+      } catch {
+        // キャンセル or 非対応 → クリップボードへフォールバック
+      }
+    }
+
+    // クリップボードコピー (デスクトップ等)
+    try {
+      await navigator.clipboard.writeText(text);
+      setShareState("copied");
+      setTimeout(() => setShareState("idle"), 2000);
+    } catch {
+      // clipboard 非対応の場合は何もしない
+    }
+  };
 
   return (
     <div className="flex flex-col min-h-screen pb-44">
@@ -125,11 +157,21 @@ export default function ResultScreen({ playlist, condition, onRegenerate, onBack
             再生成
           </button>
           <button
+            onClick={handleShare}
             className="flex-1 py-4 rounded-2xl text-sm font-bold text-black flex items-center justify-center gap-2 active:scale-95 transition-transform"
             style={{ background: "linear-gradient(135deg, var(--accent) 0%, #00e67a 100%)" }}
           >
-            <Share2 size={16} />
-            シェア
+            {shareState === "copied" ? (
+              <>
+                <Check size={16} />
+                コピー済み
+              </>
+            ) : (
+              <>
+                <Share2 size={16} />
+                シェア
+              </>
+            )}
           </button>
         </div>
         {/* Secondary action */}
