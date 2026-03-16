@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Timer, Music, Smile, User, ChevronRight, Zap } from "lucide-react";
+import { Timer, Music, Smile, User, ChevronRight, Zap, BookmarkCheck } from "lucide-react";
 import type { RunCondition, BpmMode, BpmPreset, Genre, Mood } from "@/types";
 import { BPM_PRESET_MAP } from "@/types";
 
@@ -15,9 +15,10 @@ const MOODS: { value: Mood; emoji: string }[] = [
 
 interface Props {
   onGenerate: (condition: RunCondition) => void;
+  onViewSaved: () => void;
 }
 
-export default function HomeScreen({ onGenerate }: Props) {
+export default function HomeScreen({ onGenerate, onViewSaved }: Props) {
   const [duration, setDuration] = useState(30);
   const [bpmMode, setBpmMode] = useState<BpmMode>("preset");
   const [bpmManual, setBpmManual] = useState(160);
@@ -34,11 +35,21 @@ export default function HomeScreen({ onGenerate }: Props) {
     <div className="flex flex-col min-h-screen pb-32">
       {/* Header */}
       <div className="px-5 pt-12 pb-6">
-        <div className="flex items-center gap-2 mb-1">
-          <span className="text-2xl">🎵</span>
-          <h1 className="text-2xl font-bold tracking-tight">
-            Run<span style={{ color: "var(--accent)" }}>Tune</span> AI
-          </h1>
+        <div className="flex items-center justify-between mb-1">
+          <div className="flex items-center gap-2">
+            <span className="text-2xl">🎵</span>
+            <h1 className="text-2xl font-bold tracking-tight">
+              Run<span style={{ color: "var(--accent)" }}>Tune</span> AI
+            </h1>
+          </div>
+          <button
+            onClick={onViewSaved}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-[#2a2a3a] text-xs font-medium text-gray-400 hover:text-[var(--accent)] hover:border-[var(--accent)] active:scale-95 transition-all"
+            style={{ background: "rgba(255,255,255,0.03)" }}
+          >
+            <BookmarkCheck size={14} />
+            保存済み
+          </button>
         </div>
         <p className="text-sm text-gray-400">条件を入力して、最高のプレイリストを生成しよう</p>
       </div>

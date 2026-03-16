@@ -5,13 +5,15 @@ import HomeScreen from "@/components/HomeScreen";
 import LoadingScreen from "@/components/LoadingScreen";
 import ResultScreen from "@/components/ResultScreen";
 import ErrorScreen from "@/components/ErrorScreen";
+import SavedScreen from "@/components/SavedScreen";
 import type { AppScreen, RunCondition, Playlist } from "@/types";
 
 type PageState =
   | { screen: "home" }
   | { screen: "loading"; condition: RunCondition }
   | { screen: "result"; condition: RunCondition; playlist: Playlist }
-  | { screen: "error"; condition: RunCondition; message: string };
+  | { screen: "error"; condition: RunCondition; message: string }
+  | { screen: "saved" };
 
 async function callGenerateApi(condition: RunCondition): Promise<Playlist> {
   const res = await fetch("/api/generate", {
@@ -61,10 +63,14 @@ export default function Page() {
     setState({ screen: "home" });
   }, []);
 
+  const handleViewSaved = useCallback(() => {
+    setState({ screen: "saved" });
+  }, []);
+
   return (
     <>
       {state.screen === "home" && (
-        <HomeScreen onGenerate={handleGenerate} />
+        <HomeScreen onGenerate={handleGenerate} onViewSaved={handleViewSaved} />
       )}
       {state.screen === "loading" && (
         <LoadingScreen />
@@ -84,11 +90,14 @@ export default function Page() {
           onBack={handleBackToHome}
         />
       )}
+      {state.screen === "saved" && (
+        <SavedScreen onBack={handleBackToHome} />
+      )}
 
       {/* Dev nav — removed in production */}
       {process.env.NODE_ENV === "development" && (
         <div className="fixed top-3 right-3 flex gap-1 z-50">
-          {(["home", "loading", "result", "error"] as AppScreen[]).map((s) => (
+          {(["home", "loading", "result", "error", "saved"] as AppScreen[]).map((s) => (
             <button
               key={s}
               onClick={() => {
@@ -105,6 +114,7 @@ export default function Page() {
                   const c = getDevCondition();
                   setState({ screen: "error", condition: c, message: "AI選曲中にエラーが発生しました。" });
                 }
+                if (s === "saved") setState({ screen: "saved" });
               }}
               className={`px-2 py-1 rounded text-[10px] font-bold border transition-all ${
                 state.screen === s

@@ -9,7 +9,15 @@ export type Genre =
   | "アニソン"
   | "なんでもOK";
 export type Mood = "リラックス" | "追い込み" | "楽しく" | "エモく";
-export type AppScreen = "home" | "loading" | "result" | "error";
+export type AppScreen = "home" | "loading" | "result" | "error" | "saved";
+
+export interface SavedPlaylist {
+  id: string;
+  name: string;
+  savedAt: string; // ISO date string
+  condition: RunCondition;
+  playlist: Playlist;
+}
 
 export interface RunCondition {
   durationMinutes: number;
